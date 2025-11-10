@@ -13,11 +13,11 @@ Code and Benchmark Dataset for paper DRESSing Up LLM: Efficient Stylized Questio
 
 
 ## Installation
-Run the following commands to set things up.
+Run the following commands to set things up. (baukit 可以先clone https://github.com/davidbau/baukit + 手动安装，下面方法容易报连接错误)
 ```
 git clone XXXX (This Github Link)
 cd DRESS-LLM
-conda env create -f environment.yml
+conda env create -f environment.yml 
 conda activate DRESSllm
 ```
 
@@ -29,13 +29,50 @@ The testing sets are `dataset/Valid_Shakespeare.json` and `dataset/Valid_DRC.jso
 
 For more information about the dataset, please refer to the paper.
 
+## For Qwen3
+1. At line 183 of file lib/python3.11/site-packages/transformers/models/qwen3/modeling_qwen3.py. In the init function of forward add the following code 
+```
+self.head_out = nn.Identity()
+```
+Within forward function of forward, add follows
+```
+        attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+        attn_output = self.head_out(attn_output)  # New Code
+        attn_output = self.o_proj(attn_output)
+```
+
+2. Change the attention_bias config of Qwen3 Model to be True
+
 ## Workflow
 
-(1) Get activations by running `python get_activations.py Qwen1.5-14B-Chat DRC --model_dir "/PretainedModels/Qwen1.5-14B-Chat"`. You need to fill in the model name (Qwen1.5-14B-Chat in this example), training set name(DRC or Shakespeare), and model path("/PretainedModels/Qwen1.5-14B-Chat" in this example) in this instruction. The steering vectors extracted from the training set will be saved in the `features` folder.
+(1) Get activations:
+```
+python get_activations.py \
+  --dataset_name Shakespeare \
+  --model_dir "/PretainedModels/Qwen3-8B" \
+  --session_path "/your/session/Qwen3-8B_Shakespeare"
+```
+You need to fill in the dataset name (`DRC` or `Shakespeare`), the model path, and a `session_path` where outputs are stored. Outputs are saved under `{session_path}/features`.
 
-(2) Run `python edit_weight.py --model_name Qwen1.5-14B-Chat --dataset_name DRC --activation_path "features/Qwen1.5-14B-Chat_DRC_head_wise.npy" --label_path "features/Qwen1.5-14B-Chat_DRC_labels.npy" --model_dir "/PretainedModels/Qwen1.5-14B-Chat" --num_heads 64 --alpha 3` to edit the llm and save it. You also need to fill in the model name and path, as well as the dataset name. For the Shakespeare dataset, simply replace all 'DRC's in the example with 'Shakespeare'. Parameters num_heads and alpha specify the number of edited heads and the steering intensity, respectively. The edited model is stored in the `edited_model` folder and can be directly used for inference.
+(2) Edit and save the model:
+```
+python edit_weight.py \
+  --model_dir "/PretainedModels/Qwen3-8B" \
+  --session_path "/your/session/Qwen3-8B_Shakespeare" \
+  --num_heads 64 \
+  --alpha 3
+```
+This reads features from `{session_path}/features` and saves the edited model to `{session_path}/edited_model/seed_42_top_64_heads_alpha_3.0`.
 
-(3) Run `python generate.py "edited_model/Qwen1.5-14B-Chat_dataset_DRC_seed_42_top_64_heads_alpha_3.0"` to perform inference on the test set and generate answers to all questions. Only the model path in (2) needs to be provided here. The reasoning adopts the [DRESSing UP LLM] strategy, adaptively adjusting the steering intensity in the style subspace to achieve higher generation quality.
+(3) Generate answers on the test set:
+```
+python generate.py \
+  --model_dir "/your/session/Qwen3-8B_Shakespeare/edited_model/seed_42_top_64_heads_alpha_3.0" \
+  --input_dataset "dataset/Valid_Shakespeare.json" \
+  --session_path "/your/session/Qwen3-8B_Shakespeare" \
+  --output_path "result.json"
+```
+The reasoning adopts the [DRESSing UP LLM] strategy, adaptively adjusting the steering intensity in the style subspace to achieve higher generation quality. Results are saved in `result.json`.
 Results will be saved in `result.json`.
 
 ---

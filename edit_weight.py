@@ -1,4 +1,4 @@
-# python edit_weight.py --model_name Qwen1.5-14B-Chat --dataset_name DRC --activation_path "" --label_path "" --model_dir "/data/CharacterAI/PretainedModels/Qwen1.5-14B-Chat" --num_heads 64 --alpha 3
+# python edit_weight.py --model_dir "/PretainedModels/Qwen3-8B" --session_path "/your/session/Qwen3-8B_Shakespeare" --num_heads 64 --alpha 3
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,15 +21,12 @@ sys.path.append('../')
 from utils import alt_tqa_evaluate, flattened_idx_to_layer_head, layer_head_to_flattened_idx, get_interventions_dict, get_top_heads, get_separated_activations, get_com_directions
 import llama
 import qwen2
-
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 def main(): 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_name", type=str, default='Qwen1.5-14B-Chat', help='model name')
-    parser.add_argument("--dataset_name", type=str, default=None, help='dataset name')
-    parser.add_argument("--activation_path", type=str, default=None, help='activation path')
-    parser.add_argument("--label_path", type=str, default=None, help='label path')
     parser.add_argument("--model_dir", type=str, default=None, help='local directory with model data')
+    parser.add_argument("--session_path", type=str, default=None, help='session path')
     # 以上为必需参数
     parser.add_argument('--num_heads', type=int, default=96, help='K, number of top heads to intervene on')
     parser.add_argument('--alpha', type=float, default=5, help='alpha, intervention strength')
@@ -49,8 +46,8 @@ def main():
     # create model
     print("create model")
     MODEL = args.model_dir
-    tokenizer = qwen2.Qwen2Tokenizer.from_pretrained(MODEL)
-    model = qwen2.Qwen2ForCausalLM.from_pretrained(MODEL, low_cpu_mem_usage=True, torch_dtype=torch.float16, device_map="auto")
+    tokenizer = AutoTokenizer.from_pretrained(MODEL)
+    model = AutoModelForCausalLM.from_pretrained(MODEL, low_cpu_mem_usage=True, torch_dtype=torch.float16, device_map="auto")
 
     # define number of layers and heads
     num_layers = model.config.num_hidden_layers
@@ -58,17 +55,17 @@ def main():
 
     # load activations 
     print("load activations")
-    head_wise_activations = np.load(f"{args.activation_path}")
-    labels = np.load(f"{args.label_path}")
+    head_wise_activations = np.load(f"{args.session_path}/features/head_wise.npy")
+    labels = np.load(f"{args.session_path}/features/labels.npy")
     head_wise_activations = rearrange(head_wise_activations, 'b l (h d) -> b l h d', h = num_heads)
     print(head_wise_activations.shape)
     
     dataset_len = head_wise_activations.shape[0] // 2
 
     # tuning dataset: no labels used, just to get std of activations along the direction
-    tuning_activations = np.load(f"{args.activation_path}")
+    tuning_activations = np.load(f"{args.session_path}/features/head_wise.npy")
     tuning_activations = rearrange(tuning_activations, 'b l (h d) -> b l h d', h = num_heads)
-    tuning_labels = np.load(f"{args.label_path}")
+    tuning_labels = np.load(f"{args.session_path}/features/labels.npy")
 
     separated_head_wise_activations, separated_labels, idxs_to_split_at = get_separated_activations(labels, head_wise_activations)
 
@@ -81,8 +78,8 @@ def main():
     # get directions
     com_directions = None
     top_heads, probes = get_top_heads(train_set_idxs, val_set_idxs, separated_head_wise_activations, separated_labels, num_layers, num_heads, args.seed, args.num_heads, args.use_random_dir)
-    np.save(f"features/probes_{args.num_heads}_{args.alpha:.1f}.npy",probes)
-    np.save(f"features/top_heads_{args.num_heads}_{args.alpha:.1f}.npy",top_heads)
+    np.save(f"{args.session_path}/features/probes_{args.num_heads}_{args.alpha:.1f}.npy",probes)
+    np.save(f"{args.session_path}/features/top_heads_{args.num_heads}_{args.alpha:.1f}.npy",top_heads)
 
     interventions = get_interventions_dict(top_heads, probes, tuning_activations, num_heads, args.use_center_of_mass, args.use_random_dir, com_directions)
 
@@ -106,11 +103,13 @@ def main():
         displacement = torch.tensor(rearrange(displacement, 'h d -> (h d)'), device=device)
         bias_tobe = F.linear(displacement.to(torch.float16), model.model.layers[layer_no].self_attn.o_proj.weight).to(device)
         model.model.layers[layer_no].self_attn.o_proj.bias = torch.nn.parameter.Parameter(bias_tobe)
-    with open(f"features/activations_{args.num_heads}_{args.alpha:.1f}.pkl", 'wb') as f:
+    with open(f"{args.session_path}/features/activations_{args.num_heads}_{args.alpha:.1f}.pkl", 'wb') as f:
         pickle.dump(activations_dict, f)
 
     print("save results")
-    save_folder = f"edited_model/{args.model_name}_dataset_{args.dataset_name}_seed_{args.seed}_top_{args.num_heads}_heads_alpha_{args.alpha:.1f}"
+    if not os.path.exists(f"{args.session_path}/edited_model"):
+        os.makedirs(f"{args.session_path}/edited_model")
+    save_folder = f"{args.session_path}/edited_model/seed_{args.seed}_top_{args.num_heads}_heads_alpha_{args.alpha:.1f}"
     if os.path.exists(save_folder):
       shutil.rmtree(save_folder)
     os.makedirs(save_folder)
