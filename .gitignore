@@ -4,3 +4,4 @@ llama/__pycache__/__init__.cpython-311.pyc
 qwen2/__pycache__/__init__.cpython-311.pyc
 result/*
 Qwen1.5_Shakes/*
+session/*
