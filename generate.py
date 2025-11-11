@@ -165,14 +165,16 @@ for layer_no, heads in activations_dict.items():
             svd_decomposition(layer_no, head_no, correct_activations)
 print("分解完毕")
 
-
+import random
+questions = random.sample(questions, 1000)
 for index, question in enumerate(questions):
 
     q_tokens = tokenizer(question, return_tensors = 'pt').input_ids
     # w0 = get_activations(q_tokens)
     w0 = None
     
-    question = format_with_chat_template(tokenizer, question=question)
+    # question = format_with_chat_template(tokenizer, question=question)
+    question = f"Please respond to the following statement, and do not output any unnecessary content: \nHelp me rewrite the following sentence: {question}\nOkay, my answer is as follows:\n"
     
     inputs = tokenizer(question, return_tensors='pt')
     

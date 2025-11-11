@@ -200,17 +200,17 @@ def tokenized_tqa_gen_Shakespeare(dataset, tokenizer):
 
         for j in range(len(dataset[i]['correct_answers'])): 
             answer = dataset[i]['correct_answers'][j]
-            prompt = format_with_chat_template(tokenizer, question, answer)
+            prompt = format_truthfulqa_Shakespeare(question, answer)
             #skip the last <|im_end|>
-            prompt = prompt[:-(len('<|im_end|>\n'))]
+            # prompt = prompt[:-(len('<|im_end|>\n'))]
             prompt = tokenizer(prompt, return_tensors = 'pt').input_ids
             all_prompts.append(prompt)
             all_labels.append(1)
         
         for j in range(len(dataset[i]['incorrect_answers'])):
             answer = dataset[i]['incorrect_answers'][j]
-            prompt = format_with_chat_template(tokenizer, question, answer)
-            prompt = prompt[:-(len('<|im_end|>\n'))]
+            prompt = format_truthfulqa_Shakespeare(question, answer)
+            # prompt = prompt[:-(len('<|im_end|>\n'))]
             prompt = tokenizer(prompt, return_tensors = 'pt').input_ids
             all_prompts.append(prompt)
             all_labels.append(0)
