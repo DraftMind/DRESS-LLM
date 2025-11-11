@@ -86,7 +86,9 @@ def main():
     activations_dict = {} # save
     for head_out_name, list_int_vec in tqdm(interventions.items()):
         layer_no = int(head_out_name.split('.')[2])
-        displacement = np.zeros((int(num_heads), int(model.config.hidden_size / num_heads)))
+        # Use the true per-head dimension from activations to size displacement correctly
+        head_dim = int(tuning_activations.shape[-1])
+        displacement = np.zeros((int(num_heads), head_dim))
         activations_dict[layer_no] = {} # save
         for head_no, head_vec, std in list_int_vec:
 
