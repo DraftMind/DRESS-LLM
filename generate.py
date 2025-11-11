@@ -171,23 +171,22 @@ for index, question in enumerate(questions):
     q_tokens = tokenizer(question, return_tensors = 'pt').input_ids
     # w0 = get_activations(q_tokens)
     w0 = None
-    # question = "请你对下面的语句作出回应：\n" + question + "\n好的，我的回答如下：\n"
-    question = "Please respond to the following statement, and do not output any unnecessary content: \n{question}\nOkay, my answer is as follows:\n"
+    
     question = format_with_chat_template(tokenizer, question=question)
     
     inputs = tokenizer(question, return_tensors='pt')
     
-    
+    #Normal generation
     # 调用model 对 inputs进行generate 并对模型生成内容进行解码
     outputs = model.generate(**{k: v.to(model.device) for k, v in inputs.items()}, max_length=600, num_return_sequences=1, top_k=1)
-    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    answer = tokenizer.decode(outputs[0], skip_special_tokens=False)
     
+    
+    # #DRESS generation
     # inputs = {k: v.to(model.device) for k, v in inputs.items()} 
-    # # my_generate()
     # sequence = my_generate(w0, q_tokens.to('cuda:0'), inputs)
     # # print(sequence)
-    # answer = tokenizer.decode(sequence, skip_special_tokens=True)
-    
+    # answer = tokenizer.decode(sequence, skip_special_tokens=False)
     print(index, answer)
     answers.append(answer)
     

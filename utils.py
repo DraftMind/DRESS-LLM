@@ -78,17 +78,17 @@ def format_truthfulqa_end_q(question, choice, rand_question):
 def format_with_chat_template(tokenizer, question, choice=None):
     
     messages =  [
-        {"role": "user", "content": question}
+        {"role": "user", "content": question+'/no_think'}
     ]
     
     if choice is not None:
-        messages.append({"role": "assistant", "content": choice})
+        messages.append({"role": "assistant", "content": "<think>\n\n</think>\n\n"+choice})
     
     # 将messages转换为字符串格式
     
     messages_string = tokenizer.apply_chat_template(
         messages,
-        add_generation_prompt=True,   # 关键：让模型从 assistant 段落开始生成
+        add_generation_prompt=False if choice is not None else True,   # 关键：让模型从 assistant 段落开始生成
         tokenize=False
     )
     return messages_string
@@ -201,6 +201,8 @@ def tokenized_tqa_gen_Shakespeare(dataset, tokenizer):
         for j in range(len(dataset[i]['correct_answers'])): 
             answer = dataset[i]['correct_answers'][j]
             prompt = format_with_chat_template(tokenizer, question, answer)
+            #skip the last <|im_end|>
+            prompt = prompt[:-(len('<|im_end|>\n'))]
             prompt = tokenizer(prompt, return_tensors = 'pt').input_ids
             all_prompts.append(prompt)
             all_labels.append(1)
@@ -208,6 +210,7 @@ def tokenized_tqa_gen_Shakespeare(dataset, tokenizer):
         for j in range(len(dataset[i]['incorrect_answers'])):
             answer = dataset[i]['incorrect_answers'][j]
             prompt = format_with_chat_template(tokenizer, question, answer)
+            prompt = prompt[:-(len('<|im_end|>\n'))]
             prompt = tokenizer(prompt, return_tensors = 'pt').input_ids
             all_prompts.append(prompt)
             all_labels.append(0)
