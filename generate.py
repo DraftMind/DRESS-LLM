@@ -5,6 +5,7 @@
 #   --input_dataset "dataset/Valid_Shakespeare.json" \
 #   --session_path "/your/session/Qwen3-8B_Shakespeare" \
 #   --output_path "result.json"
+from typing import NoReturn
 import os
 import torch
 import numpy as np
@@ -39,7 +40,7 @@ else:
     except Exception as e:
         raise RuntimeError("vLLM is not installed or failed to import. Please install vllm to use --engine vllm.") from e
     llm = LLM(model=args.model_dir, max_model_len=2048)
-    sampling_params = SamplingParams(max_tokens=600, top_k=1)
+    sampling_params = SamplingParams(max_tokens=600, temperature=0.0)
 
 # 准备问题
 questions = []

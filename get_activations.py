@@ -3,7 +3,7 @@ import os
 import torch
 import numpy as np
 import pickle
-from utils import get_llama_activations_bau, tokenized_tqa, tokenized_tqa_gen_DRC, tokenized_tqa_gen_Shakespeare
+from utils import get_llama_activations_bau, tokenized_tqa_gen_DRC, tokenized_tqa_gen_Shakespeare, zero_qwen3_attention_biases
 import llama
 import qwen2
 import argparse
@@ -29,6 +29,8 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL)
     model = AutoModelForCausalLM.from_pretrained(MODEL, low_cpu_mem_usage=True, torch_dtype=torch.float16, device_map="auto")
+    num_zeroed = zero_qwen3_attention_biases(model)
+    print(f"Zeroed {num_zeroed} attention biases")
     device = "cuda"
 
     if args.dataset_name == "DRC": 
