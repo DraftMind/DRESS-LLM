@@ -79,9 +79,17 @@ def main():
 
     # get directions
     com_directions = None
-    top_heads, probes = get_top_heads(train_set_idxs, val_set_idxs, separated_head_wise_activations, separated_labels, num_layers, num_heads, args.seed, args.num_heads, args.use_random_dir)
-    np.save(f"{args.session_path}/features/probes_{args.num_heads}_{args.alpha:.1f}.npy",probes)
-    np.save(f"{args.session_path}/features/top_heads_{args.num_heads}_{args.alpha:.1f}.npy",top_heads)
+    # top_heads, probes do not depend on alpha, cache and reuse if possible
+    probes_path = f"{args.session_path}/features/probes_{args.num_heads}.npy"
+    top_heads_path = f"{args.session_path}/features/top_heads_{args.num_heads}.npy"
+    if os.path.exists(probes_path) and os.path.exists(top_heads_path):
+        print(f"Loading cached probes and top_heads from {probes_path} and {top_heads_path}")
+        probes = np.load(probes_path, allow_pickle=True)
+        top_heads = np.load(top_heads_path, allow_pickle=True)
+    else:
+        top_heads, probes = get_top_heads(train_set_idxs, val_set_idxs, separated_head_wise_activations, separated_labels, num_layers, num_heads, args.seed, args.num_heads, args.use_random_dir)
+        np.save(probes_path, probes)
+        np.save(top_heads_path, top_heads)
 
     interventions = get_interventions_dict(top_heads, probes, tuning_activations, num_heads, args.use_center_of_mass, args.use_random_dir, com_directions)
 

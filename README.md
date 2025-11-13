@@ -43,6 +43,18 @@ Within forward function of forward, add follows
 
 2. Change the attention_bias config of Qwen3 Model to be True
 
+3. **If using vLLM for inference**: Fix the vLLM Qwen3 implementation bug
+   - File: `lib/python3.11/site-packages/vllm/model_executor/models/qwen3.py`
+   - Line 110 (in `Qwen3Attention.__init__`): Change `bias=False` to `bias=qkv_bias`
+   - This ensures vLLM respects the `attention_bias` config when loading o_proj weights
+   ```python
+   # Original (BUG):
+   self.o_proj = RowParallelLinear(..., bias=False, ...)
+   
+   # Fixed:
+   self.o_proj = RowParallelLinear(..., bias=qkv_bias, ...)
+   ```
+
 ## Workflow
 
 (1) Get activations:
